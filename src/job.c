@@ -49,7 +49,15 @@ int remove_pid_from_job(struct job *job, pid_t pid) {
     /*
      * TODO: Implement remove_pid_from_job()
     */
-    return 0;
+    int i;
+    for(i = 0; i < job->remaining_processes; i++) {
+        if(job->pids[i] == pid) {
+            job->pids[i] = job->pids[job->remaining_processes-1];
+            job->remaining_processes--;
+            return 0;
+        }
+    }
+    return 1;
 }
 /*--------------------------------------------------------------------*/
 int delete_job(int jobid) {
@@ -63,6 +71,7 @@ int delete_job(int jobid) {
         djob -> remaining_processes = 0;
         djob -> used = 0;
         djob -> jobstate = UNKNOWN;
+        memset(djob->pids, 0, sizeof(djob->pids));
         manager -> n_jobs--;
         return 0;
     }

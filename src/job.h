@@ -18,6 +18,7 @@
 #include <assert.h>
 
 #define MAX_JOBS 16
+#define MAX_PIDS 64
 
 typedef enum State {
     UNKNOWN = 0,
@@ -37,6 +38,7 @@ struct job {
     int remaining_processes;
     int used;
     job_state jobstate;
+    pid_t pids[MAX_PIDS];
     /* TODO: Add any necessary fields to the job */
 };
 

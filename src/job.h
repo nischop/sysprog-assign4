@@ -35,6 +35,8 @@ struct job {
     int job_id;
     pid_t pgid;
     int remaining_processes;
+    int used;
+    job_state jobstate;
     /* TODO: Add any necessary fields to the job */
 };
 

@@ -256,18 +256,20 @@ int fork_exec(DynArray_T oTokens, int is_background) {
      * process group id.  
      * All terminated processes must be handled by sigchld_handler() in * snush.c. 
      */
-    char **args;
-    build_command(oTokens, &args);
-    struct job *job = job_create(arg1, arg2, arg3);
+    char *args[dynarray_get_length(oTokens)];
+    build_command(oTokens, args);
+    struct job *job = add_job();
 
     pid_t pid = fork();
 
     if(pid == 0) {
-        setpgid(0, job->job_id);
+        setpgid(0, 0);
         execvp(args[0], args);
+        _exit(1);
     }
-    job->pgid = job->job_id;
-    add_pid_to_job(pid, job);
+    job->pgid = pid;
+    add_pid_to_job(job, pid);
+    setpgid(pid, pid);
     wait_fg(job->job_id);
     //int job_id = 1;
     return job->job_id;

@@ -50,14 +50,16 @@ int remove_pid_from_job(struct job *job, pid_t pid) {
      * TODO: Implement remove_pid_from_job()
     */
     int i;
-    for(i = 0; i < job->remaining_processes; i++) {
-        if(job->pids[i] == pid) {
-            job->pids[i] = job->pids[job->remaining_processes-1];
-            job->remaining_processes--;
-            return 0;
+    for(i = 0; i < MAX_PIDS; i++) {
+        if (job->pids[i] == pid) {
+            job->pids[i] = 0;
+            if (job->remaining_processes > 0) {
+                job->remaining_processes--;
+            }
+            return 1;
         }
     }
-    return 1;
+    return 0;
 }
 /*--------------------------------------------------------------------*/
 int delete_job(int jobid) {
@@ -82,13 +84,13 @@ int delete_job(int jobid) {
  * TODO: Implement any necessary job-control code in job.c 
  */
 
- struct job *add_job(int processes) {
+struct job *add_job() {
     int i;
     for(i = 0; i < MAX_JOBS; i++) {
         if(!manager->jobs[i].used) {
             struct job *newjob = &manager->jobs[i];
             newjob -> pgid = 0;
-            newjob -> remaining_processes = processes;
+            newjob -> remaining_processes = 0;
             newjob -> used = 1;
             newjob -> jobstate = UNKNOWN;
             manager->n_jobs++;
@@ -98,12 +100,11 @@ int delete_job(int jobid) {
     return NULL;
  }
 
- int add_pid_to_job(struct job *job, pid_t pid) {
-
+int add_pid_to_job(struct job *job, pid_t pid) {
     int i;
-    for(i = 0; i < job->remaining_processes; i++) {
-        if(job->pids[i] == pid) {
-            job->pids[i] = job->pids[job->remaining_processes-1];
+    for(i = 0; i < MAX_PIDS; i++) {
+        if(job->pids[i] == 0) {
+            job->pids[i] = pid;
             job->remaining_processes++;
             return 0;
         }

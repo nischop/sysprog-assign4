@@ -61,5 +61,7 @@ int delete_job(int job_id);
 /*
  * TODO: Implement any necessary job-control code in job.h 
  */
+struct job *add_job();
+int add_pid_to_job();
 
 #endif /* _JOB_H_ */

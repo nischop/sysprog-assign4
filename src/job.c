@@ -81,3 +81,32 @@ int delete_job(int jobid) {
 /*
  * TODO: Implement any necessary job-control code in job.c 
  */
+
+ struct job *add_job(int processes) {
+    int i;
+    for(i = 0; i < MAX_JOBS; i++) {
+        if(!manager->jobs[i].used) {
+            struct job *newjob = &manager->jobs[i];
+            newjob -> pgid = 0;
+            newjob -> remaining_processes = processes;
+            newjob -> used = 1;
+            newjob -> jobstate = UNKNOWN;
+            manager->n_jobs++;
+            return newjob;
+        }
+    }
+    return NULL;
+ }
+
+ int add_pid_to_job(struct job *job, pid_t pid) {
+
+    int i;
+    for(i = 0; i < job->remaining_processes; i++) {
+        if(job->pids[i] == pid) {
+            job->pids[i] = job->pids[job->remaining_processes-1];
+            job->remaining_processes++;
+            return 0;
+        }
+    }
+    return 1;
+}

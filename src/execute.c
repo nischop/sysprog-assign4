@@ -37,7 +37,18 @@ void handle_sigchld(void) {
      * If the child process terminates, handle the job accordingly.
      * Be careful to handle the SIGCHLD signal flag and unblock SIGCHLD.
     */
-    
+    pid_t pid;
+    int status;
+    if (sigchld_flag) {
+        block_signal(SIGCHLD, 1);
+        sigchld_flag = 0;
+        while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        
+        
+        }
+        block_signal(SIGCHLD, 0);
+    }
+
 }
 /*--------------------------------------------------------------------*/
 void handle_sigint(void) {
@@ -259,7 +270,7 @@ int fork_exec(DynArray_T oTokens, int is_background) {
     char *args[dynarray_get_length(oTokens)];
     build_command(oTokens, args);
     struct job *job = add_job();
-
+    pid_t shell_pid = getpid();
     pid_t pid = fork();
 
     if(pid == 0) {
@@ -270,8 +281,10 @@ int fork_exec(DynArray_T oTokens, int is_background) {
     job->pgid = pid;
     add_pid_to_job(job, pid);
     setpgid(pid, pid);
+    tcsetpgrp(STDIN_FILENO, pid);
     wait_fg(job->job_id);
-    //int job_id = 1;
+    tcsetpgrp(STDIN_FILENO, shell_pid);
+ 
     return job->job_id;
 }
 /*--------------------------------------------------------------------*/

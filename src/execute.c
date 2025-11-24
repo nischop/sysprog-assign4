@@ -39,12 +39,28 @@ void handle_sigchld(void) {
     */
     pid_t pid;
     int status;
+    int i;
+    int j;
     if (sigchld_flag) {
         block_signal(SIGCHLD, 1);
         sigchld_flag = 0;
         while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-        
-        
+            for(i = 0; i < MAX_JOBS; i++) {
+                struct job *lookjob = &manager->jobs[i];
+                if (!lookjob->used) {
+                    continue;
+                }
+                for (j = 0; j < lookjob->remaining_processes; j++) {
+                    if (lookjob->pids[j] == pid) {
+                        remove_pid_from_job(lookjob, pid);
+                        if (lookjob->remaining_processes == 0) {
+                            delete_job(lookjob->job_id);
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
         }
         block_signal(SIGCHLD, 0);
     }

@@ -45,6 +45,7 @@ void handle_sigchld(void) {
         block_signal(SIGCHLD, 1);
         sigchld_flag = 0;
         while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+            int found = 0;
             for(i = 0; i < MAX_JOBS; i++) {
                 struct job *lookjob = &manager->jobs[i];
                 if (!lookjob->used) {
@@ -52,14 +53,15 @@ void handle_sigchld(void) {
                 }
                 for (j = 0; j < lookjob->remaining_processes; j++) {
                     if (lookjob->pids[j] == pid) {
+                        found = 1;
                         remove_pid_from_job(lookjob, pid);
                         if (lookjob->remaining_processes == 0) {
                             delete_job(lookjob->job_id);
-                        }
+                        } 
                         break;
                     }
-                }
-                break;
+                } 
+                if(found) {break;}
             }
         }
         block_signal(SIGCHLD, 0);
@@ -75,6 +77,23 @@ void handle_sigint(void) {
      * process group.
      * Be careful to handle the SIGINT signal flag and unblock SIGINT.
      */
+    int i;
+    if (sigint_flag) {
+        block_signal(SIGINT, 1);
+        sigint_flag = 0;
+        for (i = 0; i < MAX_JOBS; i++) {
+            struct job *findjob = &manager->jobs[i];
+            if (findjob->jobstate == FOREGROUND && findjob->used == 1) {
+                int fgpgid = findjob->pgid;
+                if (fgpgid > 0) {
+                    killpg(fgpgid, SIGINT);
+                    break;
+                }
+            }
+        }
+        block_signal(SIGINT, 0);
+
+    }
     
 }
 /*--------------------------------------------------------------------*/

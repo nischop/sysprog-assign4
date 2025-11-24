@@ -121,6 +121,15 @@ void redout_handler(char *fname) {
     /*
      TODO: Implement redout_handler in execute.c
     */
+   int fd;
+   fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+   if (fd < 0) {
+    error_print(NULL, PERROR);
+    exit(EXIT_FAILURE);
+   }
+
+   dup2_e(fd, STDOUT_FILENO, __func__, __LINE__);
+   close(fd);
 }
 /*--------------------------------------------------------------------*/
 void redin_handler(char *fname) {
@@ -302,14 +311,14 @@ int fork_exec(DynArray_T oTokens, int is_background) {
      * process group id.  
      * All terminated processes must be handled by sigchld_handler() in * snush.c. 
      */
-    char *args[dynarray_get_length(oTokens)];
-    build_command(oTokens, args);
     struct job *job = add_job();
     pid_t shell_pid = getpid();
     pid_t pid = fork();
 
     if(pid == 0) {
         setpgid(0, 0);
+        char *args[dynarray_get_length(oTokens)];
+        build_command(oTokens, args);
         execvp(args[0], args);
         _exit(1);
     }

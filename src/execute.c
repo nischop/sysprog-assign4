@@ -342,6 +342,56 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
      * All terminated processes must be handled by sigchld_handler() in * snush.c. 
      */
 
+    /*
+    System Functions to Utilize:
+    Fork()
+    Dup2()
+    Execvp()
+    Pipe()
+    Close()
+    Setpgid()
+    tcsetpgrp()
+
+    SNU Functions to Utilize:
+    dynarray_get() Get tokens at specific index
+    dynarray_get_length() total number of tokens
+    Checkbuiltin() = Checks whether the command is Exit, Cd or NORMAL(Means outside command call)
+    ExecuteBuiltinPartial()/ExecuteBuiltIN = Executes the Built in function depending on the Enum type, Cd, Exit
+    build_command() = Constructs Argument Array passed to Execvp
+    wait_fg() = Continously checks for Job to finish 
+    */
+    struct index {
+        int start_index;
+        int end_index;
+    };
+    
+    int i;
+    int start = 0;
+    int end = 0;
+    int arrayindex = 0;
+    struct index *indices = calloc(n_pipe+1, sizeof(struct index));
+
+    for(i = 0; i < dynarray_get_length(oTokens); i++) {
+        struct Token *t_curr = dynarray_get(oTokens, i);
+        end = i;
+        if(t_curr->token_type != TOKEN_PIPE) {
+            continue;
+        } else if (t_curr->token_type == TOKEN_PIPE) {
+            indices[arrayindex].start_index = start;
+            indices[arrayindex].end_index = i-1;
+            start = i+1;
+            arrayindex++;
+        }
+    }
+    indices[arrayindex].start_index = start;
+    indices[arrayindex].end_index = end;
+
+    for(i = 0; i < n_pipe+1; i++) {
+        struct Token *t_start = dynarray_get(oTokens, indices[i].start_index);
+        struct Token *t_end = dynarray_get(oTokens, indices[i].end_index);
+        printf("%s %s \n", t_start->token_value, t_end->token_value);
+    }
+
     int job_id = 1;  
     return job_id;
 }

@@ -13,7 +13,7 @@
 #--- variable declarations
 
 # C compiler and compilation flags
-CC=gcc
+CC=gcc800
 CFLAGS=-Wall -O2 -g
 
 SOURCES=$(wildcard my*.c)

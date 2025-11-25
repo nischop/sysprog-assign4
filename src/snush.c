@@ -20,6 +20,10 @@ void check_bg_status() {
     /*
      * TODO: Implement check_bg_status()
      */
+
+    /* I've written to the stdout that job is done in handle_sigchld() instead
+        as permitted in https://www.classum.com/main/space/236383/community/284?tag=1094898 */
+
 }
 /*--------------------------------------------------------------------*/
 void terminate_jobs() {
@@ -27,6 +31,14 @@ void terminate_jobs() {
     /*
      * TODO: Implement terminate_jobs()
     */
+    int i;
+    for(i = 0; i < MAX_JOBS; i++) {
+        if(manager->jobs[i].used != 1) {
+            continue;
+        }
+        killpg(manager->jobs[i].pgid, SIGTERM);
+        delete_job(manager->jobs[i].job_id);
+    }
 }
 /*--------------------------------------------------------------------*/
 void cleanup() {
@@ -34,6 +46,7 @@ void cleanup() {
     /*
      * TODO: Implement cleanup(), if necessary
      */
+    free(manager->jobs);
     free(manager);
 }
 /*--------------------------------------------------------------------*/

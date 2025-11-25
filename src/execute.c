@@ -56,6 +56,8 @@ void handle_sigchld(void) {
                         found = 1;
                         remove_pid_from_job(lookjob, pid);
                         if (lookjob->remaining_processes == 0) {
+                            fprintf(stdout,
+                                "[%d] Process group: %d done\n", lookjob->job_id, lookjob->pgid);
                             delete_job(lookjob->job_id);
                         } 
                         break;
@@ -122,7 +124,7 @@ void redout_handler(char *fname) {
      TODO: Implement redout_handler in execute.c
     */
    int fd;
-   fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+   fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0600);
    if (fd < 0) {
     error_print(NULL, PERROR);
     exit(EXIT_FAILURE);
@@ -325,10 +327,15 @@ int fork_exec(DynArray_T oTokens, int is_background) {
     job->pgid = pid;
     add_pid_to_job(job, pid);
     setpgid(pid, pid);
-    tcsetpgrp(STDIN_FILENO, pid);
-    wait_fg(job->job_id);
-    tcsetpgrp(STDIN_FILENO, shell_pid);
- 
+    if(!is_background) {
+        job ->jobstate = FOREGROUND;
+        tcsetpgrp(STDIN_FILENO, pid);
+        wait_fg(job->job_id);
+        tcsetpgrp(STDIN_FILENO, shell_pid);
+    } else {
+        job->jobstate = BACKGROUND;
+        print_job(job->job_id, pid);
+    }
     return job->job_id;
 }
 /*--------------------------------------------------------------------*/
@@ -419,13 +426,14 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
                 close(pipefds[i]);
     }
     if (!is_background) {
+        job->jobstate = FOREGROUND;
         tcsetpgrp(STDIN_FILENO, job->pgid);
         wait_fg(job->job_id);
         tcsetpgrp(STDIN_FILENO, shell_pid);
     } else {
+        job->jobstate = BACKGROUND;
         print_job(job->job_id, job->pgid);
     }
-
 
     return childpid;
 }

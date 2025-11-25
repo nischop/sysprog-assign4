@@ -342,29 +342,16 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
      * All terminated processes must be handled by sigchld_handler() in * snush.c. 
      */
 
-    /*
-    System Functions to Utilize:
-    Fork()
-    Dup2()
-    Execvp()
-    Pipe()
-    Close()
-    Setpgid()
-    tcsetpgrp()
-
-    SNU Functions to Utilize:
-    dynarray_get() Get tokens at specific index (X)
-    dynarray_get_length() total number of tokens (X)
-    Checkbuiltin() = Checks whether the command is Exit, Cd or NORMAL(Means outside command call)
-    ExecuteBuiltinPartial()/ExecuteBuiltIN = Executes the Built in function depending on the Enum type, Cd, Exit
-    build_command() = Constructs Argument Array passed to Execvp
-    wait_fg() = Continously checks for Job to finish 
-    */
     struct index {
         int start_index;
         int end_index;
     };
 
+    struct job *job = add_job();
+    pid_t shell_pid = getpid();
+    pid_t childpid;
+
+    //Decomposing the token array, and creating indexes to each command in the pipeline
     int i;
     int start = 0;
     int end = 0;
@@ -386,36 +373,63 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
     indices[arrayindex].start_index = start;
     indices[arrayindex].end_index = end;
 
-    // for(i = 0; i < n_pipe+1; i++) {
-    //     struct Token *t_start = dynarray_get(oTokens, indices[i].start_index);
-    //     struct Token *t_end = dynarray_get(oTokens, indices[i].end_index);
-    //     printf("%s %s \n", t_start->token_value, t_end->token_value);
-    // }
-
-    int childpid;
-
+    //Setting up pipes
     int pipefds[2 * n_pipe];
     for(i = 0; i < n_pipe; i++) {
         pipe(pipefds + i * 2);
     }
 
+    //Creating child processes and make each execute 1 of the commands in the pipeline
     for(i = 0; i < n_pipe + 1; i++) {
-        pid = fork()
+        pid_t pid = fork();
         if(pid == 0) {
-            if (i == 0) {
-                childpid = pid;
+            //Set the FD's according to which command we are at
+            if(i == 0) {
+                dup2(pipefds[1], STDOUT_FILENO);
+            } else if (i == n_pipe) {
+                dup2(pipefds[(i - 1) * 2], STDIN_FILENO);
+            } else {
+                dup2(pipefds[(i - 1) * 2], STDIN_FILENO);
+                dup2(pipefds[i * 2 + 1], STDOUT_FILENO);
             }
-            setpgid(childpid, childpid);
-            build_command(oTokens, args);
+            for(int j = 0; j < 2 * n_pipe; j++){
+                close(pipefds[j]);
+            }
+            //Check if the command is a builtin one, if so, execute it
+            enum BuiltinType bt = check_builtin(dynarray_get(oTokens, indices[i].start_index));
+            if (bt != NORMAL) {
+                execute_builtin_partial(oTokens, indices[i].start_index,
+                    indices[i].end_index, bt, FALSE);
+                _exit(0);
+            }
+            //The command is external and therefor calls execvp
+            char *args[dynarray_get_length(oTokens)];
+            build_command_partial(oTokens, indices[i].start_index, 
+                indices[i].end_index, args);
             execvp(args[0], args);
+            perror("execvp failed");
             _exit(1);
         }
+        if (i == 0) {
+            childpid = pid;
+            job->pgid = childpid;
+        }
+        add_pid_to_job(job, pid);
+        setpgid(pid, childpid);
+    }
+    for(i = 0; i < 2 * n_pipe; i++){
+                close(pipefds[i]);
+    }
+    // foreground vs background
+    if (!is_background) {
+        tcsetpgrp(STDIN_FILENO, job->pgid);
+        wait_fg(job->job_id);
+        tcsetpgrp(STDIN_FILENO, shell_pid);
+    } else {
+        print_job(job->job_id, job->pgid);  // or whatever your API is
     }
 
 
-
-
-    int job_id = 1;  
-    return job_id;
+    return childpid;
 }
 /*--------------------------------------------------------------------*/

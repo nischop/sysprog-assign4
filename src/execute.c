@@ -354,24 +354,22 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
     //Decomposing the token array, and creating indexes to each command in the pipeline
     int i;
     int start = 0;
-    int end = 0;
     int arrayindex = 0;
     struct index *indices = calloc(n_pipe+1, sizeof(struct index));
 
     for(i = 0; i < dynarray_get_length(oTokens); i++) {
         struct Token *t_curr = dynarray_get(oTokens, i);
-        end = i;
         if(t_curr->token_type != TOKEN_PIPE) {
             continue;
         } else if (t_curr->token_type == TOKEN_PIPE) {
             indices[arrayindex].start_index = start;
-            indices[arrayindex].end_index = i-1;
+            indices[arrayindex].end_index = i;
             start = i+1;
             arrayindex++;
         }
     }
     indices[arrayindex].start_index = start;
-    indices[arrayindex].end_index = end;
+    indices[arrayindex].end_index = dynarray_get_length(oTokens);
 
     //Setting up pipes
     int pipefds[2 * n_pipe];
@@ -420,13 +418,12 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
     for(i = 0; i < 2 * n_pipe; i++){
                 close(pipefds[i]);
     }
-    // foreground vs background
     if (!is_background) {
         tcsetpgrp(STDIN_FILENO, job->pgid);
         wait_fg(job->job_id);
         tcsetpgrp(STDIN_FILENO, shell_pid);
     } else {
-        print_job(job->job_id, job->pgid);  // or whatever your API is
+        print_job(job->job_id, job->pgid);
     }
 
 

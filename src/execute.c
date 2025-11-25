@@ -353,8 +353,8 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
     tcsetpgrp()
 
     SNU Functions to Utilize:
-    dynarray_get() Get tokens at specific index
-    dynarray_get_length() total number of tokens
+    dynarray_get() Get tokens at specific index (X)
+    dynarray_get_length() total number of tokens (X)
     Checkbuiltin() = Checks whether the command is Exit, Cd or NORMAL(Means outside command call)
     ExecuteBuiltinPartial()/ExecuteBuiltIN = Executes the Built in function depending on the Enum type, Cd, Exit
     build_command() = Constructs Argument Array passed to Execvp
@@ -364,7 +364,7 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
         int start_index;
         int end_index;
     };
-    
+
     int i;
     int start = 0;
     int end = 0;
@@ -386,11 +386,18 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
     indices[arrayindex].start_index = start;
     indices[arrayindex].end_index = end;
 
-    for(i = 0; i < n_pipe+1; i++) {
-        struct Token *t_start = dynarray_get(oTokens, indices[i].start_index);
-        struct Token *t_end = dynarray_get(oTokens, indices[i].end_index);
-        printf("%s %s \n", t_start->token_value, t_end->token_value);
+    // for(i = 0; i < n_pipe+1; i++) {
+    //     struct Token *t_start = dynarray_get(oTokens, indices[i].start_index);
+    //     struct Token *t_end = dynarray_get(oTokens, indices[i].end_index);
+    //     printf("%s %s \n", t_start->token_value, t_end->token_value);
+    // }
+
+    int pipefds[2 * n_pipe];
+    for(i = 0; i < n_pipe; i++) {
+        pipe(pipefds + i * 2);
     }
+
+    
 
     int job_id = 1;  
     return job_id;

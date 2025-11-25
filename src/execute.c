@@ -107,7 +107,7 @@ void dup2_e(int oldfd, int newfd, const char *func, const int line) {
         fprintf(stderr, 
             "Error dup2(%d, %d): %s(%s) at (%s:%d)\n", 
             oldfd, newfd, strerror(errno), errno_name(errno), func, line);
-        exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE);
     }
 }
 /*--------------------------------------------------------------------*/
@@ -127,7 +127,7 @@ void redout_handler(char *fname) {
    fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0600);
    if (fd < 0) {
     error_print(NULL, PERROR);
-    exit(EXIT_FAILURE);
+    _exit(EXIT_FAILURE);
    }
 
    dup2_e(fd, STDOUT_FILENO, __func__, __LINE__);
@@ -140,7 +140,7 @@ void redin_handler(char *fname) {
     fd = open(fname, O_RDONLY);
     if (fd < 0) {
         error_print(NULL, PERROR);
-        exit(EXIT_FAILURE);
+        _exit(EXIT_FAILURE);
     }
 
     dup2_e(fd, STDIN_FILENO, __func__, __LINE__);

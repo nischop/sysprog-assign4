@@ -385,8 +385,11 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
         pid_t pid;
         if ((pid = fork()) < 0) {
             error_print("Failed to create child process in iter_pipe_fork_exec", PERROR);
-            killpg(job->pgid, SIGTERM);
-            delete_job(job->job_id);
+            if (i == 0) {
+                delete_job(job->job_id);
+            } else if (i > 0) {
+                killpg(job->pgid, SIGTERM);
+            }
             return -1;
         }
         if(pid == 0) {
@@ -394,21 +397,21 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
             if(i == 0) {
                 if(dup2(pipefds[1], STDOUT_FILENO) < 0) {
                     error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
-                    _exit(1);
+                    _exit(-1);
                 }
             } else if (i == n_pipe) {
                 if(dup2(pipefds[(i - 1) * 2], STDIN_FILENO) < 0) {
-                    error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
-                    _exit(1);
+                    error_print("dup2 for i==n_pipe failed in iter_pipe_fork_exec", PERROR);
+                    _exit(-1);
                 }
             } else {
                 if(dup2(pipefds[(i - 1) * 2], STDIN_FILENO) < 0) {
-                    error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
-                    _exit(1);
+                    error_print("dup2 for else failed in iter_pipe_fork_exec", PERROR);
+                    _exit(-1);
                 }
                 if(dup2(pipefds[i * 2 + 1], STDOUT_FILENO) < 0) {
-                    error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
-                    _exit(1);
+                    error_print("dup2 for else failed in iter_pipe_fork_exec", PERROR);
+                    _exit(-1);
                 }
             }
             for(int j = 0; j < 2 * n_pipe; j++){
@@ -417,18 +420,17 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
             //Check if the command is a builtin one, if so, execute it
             enum BuiltinType bt = check_builtin(dynarray_get(oTokens, indices[i].start_index));
             if (bt != NORMAL) {
-                if (execute_builtin_partial(oTokens, indices[i].start_index,
-                    indices[i].end_index, bt, FALSE) < 0) {
-                        _exit(0);
-                    }
+                execute_builtin_partial(oTokens, indices[i].start_index,
+                    indices[i].end_index, bt, FALSE);
+                    exit(-1);
             } else if (bt == NORMAL) {
                 //The command is external and therefor calls execvp
-                char *args[dynarray_get_length(oTokens)+1];
+                char *args[dynarray_get_length(oTokens)];
                 build_command_partial(oTokens, indices[i].start_index, 
                     indices[i].end_index, args);
                 if (execvp(args[0], args) < 0){
                     error_print("execvp failed in iter_pipe_fork_exec",PERROR);
-                    _exit(1);
+                    _exit(-1);
                 }
             }
         }

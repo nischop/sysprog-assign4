@@ -397,21 +397,21 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
             if(i == 0) {
                 if(dup2(pipefds[1], STDOUT_FILENO) < 0) {
                     error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
-                    _exit(-1);
+                    _exit(1);
                 }
             } else if (i == n_pipe) {
                 if(dup2(pipefds[(i - 1) * 2], STDIN_FILENO) < 0) {
                     error_print("dup2 for i==n_pipe failed in iter_pipe_fork_exec", PERROR);
-                    _exit(-1);
+                    _exit(1);
                 }
             } else {
                 if(dup2(pipefds[(i - 1) * 2], STDIN_FILENO) < 0) {
                     error_print("dup2 for else failed in iter_pipe_fork_exec", PERROR);
-                    _exit(-1);
+                    _exit(1);
                 }
                 if(dup2(pipefds[i * 2 + 1], STDOUT_FILENO) < 0) {
                     error_print("dup2 for else failed in iter_pipe_fork_exec", PERROR);
-                    _exit(-1);
+                    _exit(1);
                 }
             }
             for(int j = 0; j < 2 * n_pipe; j++){

@@ -31,12 +31,6 @@ void block_signal(int sig, int block) {
 /*--------------------------------------------------------------------*/
 void handle_sigchld(void) {
 
-    /*
-     * TODO: Implement handle_sigchld() in execute.c
-     * Call waitpid() to wait for the child process to terminate.
-     * If the child process terminates, handle the job accordingly.
-     * Be careful to handle the SIGCHLD signal flag and unblock SIGCHLD.
-    */
     pid_t pid;
     int status;
     int i;
@@ -44,7 +38,15 @@ void handle_sigchld(void) {
     if (sigchld_flag) {
         block_signal(SIGCHLD, 1);
         sigchld_flag = 0;
-        while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        while (1) {
+            pid = waitpid(-1, &status, WNOHANG);
+            if(pid == 0) {break;}
+            if (pid < 0) {
+                if (errno == EINTR) continue;
+                if (errno == ECHILD) break;
+                error_print("Unknown error waitpid() in handle_sigchld", PERROR);
+                break;
+            }
             int found = 0;
             for(i = 0; i < MAX_JOBS; i++) {
                 struct job *lookjob = &manager->jobs[i];
@@ -73,12 +75,6 @@ void handle_sigchld(void) {
 /*--------------------------------------------------------------------*/
 void handle_sigint(void) {
     
-    /*
-     * TODO: Implement handle_sigint() in execute.c
-     * Find the foreground job and send signal to every process in the
-     * process group.
-     * Be careful to handle the SIGINT signal flag and unblock SIGINT.
-     */
     int i;
     if (sigint_flag) {
         block_signal(SIGINT, 1);
@@ -305,33 +301,37 @@ void print_job(int job_id, pid_t pgid) {
 }
 /*--------------------------------------------------------------------*/
 int fork_exec(DynArray_T oTokens, int is_background) {
-    /*
-     * TODO: Implement fork_exec() in execute.c
-     * To run a newly forked process in the foreground, call wait_fg() 
-     * to wait for the process to finish.  
-     * To run it in the background, call print_job() to print job id and
-     * process group id.  
-     * All terminated processes must be handled by sigchld_handler() in * snush.c. 
-     */
-    char *args[dynarray_get_length(oTokens)];
+
+    char *args[dynarray_get_length(oTokens)+1];
     struct job *job = add_job(1);
     pid_t shell_pid = getpid();
-    pid_t pid = fork();
+    pid_t pid;
+    if ((pid = fork()) < 0) {
+        error_print("Failed to create child process in fork_exec", PERROR);
+        delete_job(job->job_id);
+        return -1;
+    }
 
     if(pid == 0) {
         setpgid(0, 0);
         build_command(oTokens, args);
-        execvp(args[0], args);
-        _exit(1);
+        if (execvp(args[0], args) < 0){
+            error_print("execvp failed in fork_exec", PERROR);
+            _exit(1);
+        }
     }
     job->pgid = pid;
     add_pid_to_job(job, pid);
     setpgid(pid, pid);
     if(!is_background) {
         job ->jobstate = FOREGROUND;
-        tcsetpgrp(STDIN_FILENO, pid);
+        if(tcsetpgrp(STDIN_FILENO, pid) < 0) {
+            fprintf(stderr,"Failed to make pid: %d foreground process in fork_exex(tcsetpgrp)",pid);
+        }
         wait_fg(job->job_id);
-        tcsetpgrp(STDIN_FILENO, shell_pid);
+        if(tcsetpgrp(STDIN_FILENO, shell_pid) < 0) {
+            fprintf(stderr,"Failed to make shell %d the foreground process in fork_exex(tcsetpgrp)",pid);
+        }
     } else {
         job->jobstate = BACKGROUND;
         print_job(job->job_id, pid);

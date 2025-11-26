@@ -340,14 +340,6 @@ int fork_exec(DynArray_T oTokens, int is_background) {
 }
 /*--------------------------------------------------------------------*/
 int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
-    /*
-     * TODO: Implement iter_pipe_fork_exec() in execute.c
-     * To run a newly forked process in the foreground, call wait_fg() 
-     * to wait for the process to finish.  
-     * To run it in the background, call print_job() to print job id and
-     * process group id.  
-     * All terminated processes must be handled by sigchld_handler() in * snush.c. 
-     */
 
     struct index {
         int start_index;
@@ -381,21 +373,43 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
     //Setting up pipes
     int pipefds[2 * n_pipe];
     for(i = 0; i < n_pipe; i++) {
-        pipe(pipefds + i * 2);
+        if(pipe(pipefds + i * 2) < 0) {
+            fprintf(stderr,"Pipe creation failed in iter_pipe_fork_exec");
+            delete_job(job->job_id);
+            return -1;
+        }
     }
 
     //Creating child processes and make each execute 1 of the commands in the pipeline
     for(i = 0; i < n_pipe + 1; i++) {
-        pid_t pid = fork();
+        pid_t pid;
+        if ((pid = fork()) < 0) {
+            error_print("Failed to create child process in iter_pipe_fork_exec", PERROR);
+            killpg(job->pgid, SIGTERM);
+            delete_job(job->job_id);
+            return -1;
+        }
         if(pid == 0) {
             //Set the FD's according to which command we are at
             if(i == 0) {
-                dup2(pipefds[1], STDOUT_FILENO);
+                if(dup2(pipefds[1], STDOUT_FILENO) < 0) {
+                    error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
+                    _exit(1);
+                }
             } else if (i == n_pipe) {
-                dup2(pipefds[(i - 1) * 2], STDIN_FILENO);
+                if(dup2(pipefds[(i - 1) * 2], STDIN_FILENO) < 0) {
+                    error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
+                    _exit(1);
+                }
             } else {
-                dup2(pipefds[(i - 1) * 2], STDIN_FILENO);
-                dup2(pipefds[i * 2 + 1], STDOUT_FILENO);
+                if(dup2(pipefds[(i - 1) * 2], STDIN_FILENO) < 0) {
+                    error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
+                    _exit(1);
+                }
+                if(dup2(pipefds[i * 2 + 1], STDOUT_FILENO) < 0) {
+                    error_print("dup2 for i==0 failed in iter_pipe_fork_exec", PERROR);
+                    _exit(1);
+                }
             }
             for(int j = 0; j < 2 * n_pipe; j++){
                 close(pipefds[j]);
@@ -403,17 +417,20 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
             //Check if the command is a builtin one, if so, execute it
             enum BuiltinType bt = check_builtin(dynarray_get(oTokens, indices[i].start_index));
             if (bt != NORMAL) {
-                execute_builtin_partial(oTokens, indices[i].start_index,
-                    indices[i].end_index, bt, FALSE);
-                _exit(0);
+                if (execute_builtin_partial(oTokens, indices[i].start_index,
+                    indices[i].end_index, bt, FALSE) < 0) {
+                        _exit(0);
+                    }
+            } else if (bt == NORMAL) {
+                //The command is external and therefor calls execvp
+                char *args[dynarray_get_length(oTokens)+1];
+                build_command_partial(oTokens, indices[i].start_index, 
+                    indices[i].end_index, args);
+                if (execvp(args[0], args) < 0){
+                    error_print("execvp failed in iter_pipe_fork_exec",PERROR);
+                    _exit(1);
+                }
             }
-            //The command is external and therefor calls execvp
-            char *args[dynarray_get_length(oTokens)];
-            build_command_partial(oTokens, indices[i].start_index, 
-                indices[i].end_index, args);
-            execvp(args[0], args);
-            perror("execvp failed");
-            _exit(1);
         }
         if (i == 0) {
             childpid = pid;

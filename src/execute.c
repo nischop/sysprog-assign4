@@ -317,7 +317,7 @@ int fork_exec(DynArray_T oTokens, int is_background) {
         build_command(oTokens, args);
         if (execvp(args[0], args) < 0){
             error_print("execvp failed in fork_exec", PERROR);
-            _exit(1);
+            _exit(-1);
         }
     }
     job->pgid = pid;

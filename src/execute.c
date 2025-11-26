@@ -422,7 +422,7 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
             if (bt != NORMAL) {
                 execute_builtin_partial(oTokens, indices[i].start_index,
                     indices[i].end_index, bt, FALSE);
-                    exit(-1);
+                    _exit(0);
             } else if (bt == NORMAL) {
                 //The command is external and therefor calls execvp
                 char *args[dynarray_get_length(oTokens)];
@@ -430,7 +430,7 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
                     indices[i].end_index, args);
                 if (execvp(args[0], args) < 0){
                     error_print("execvp failed in iter_pipe_fork_exec",PERROR);
-                    _exit(-1);
+                    _exit(1);
                 }
             }
         }

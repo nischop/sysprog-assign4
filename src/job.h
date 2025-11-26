@@ -38,7 +38,8 @@ struct job {
     int remaining_processes;
     int used;
     job_state jobstate;
-    pid_t pids[MAX_PIDS];
+    pid_t *pids;
+    int n_procs;
     /* TODO: Add any necessary fields to the job */
 };
 

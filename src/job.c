@@ -50,7 +50,7 @@ int remove_pid_from_job(struct job *job, pid_t pid) {
      * TODO: Implement remove_pid_from_job()
     */
     int i;
-    for(i = 0; i < MAX_PIDS; i++) {
+    for(i = 0; i < job->n_procs; i++) {
         if (job->pids[i] == pid) {
             job->pids[i] = 0;
             if (job->remaining_processes > 0) {
@@ -72,8 +72,9 @@ int delete_job(int jobid) {
         djob -> pgid = 0;
         djob -> remaining_processes = 0;
         djob -> used = 0;
+        djob ->n_procs = 0;
         djob -> jobstate = UNKNOWN;
-        memset(djob->pids, 0, sizeof(djob->pids));
+        free(djob->pids);
         manager -> n_jobs--;
         return 0;
     }
@@ -84,12 +85,14 @@ int delete_job(int jobid) {
  * TODO: Implement any necessary job-control code in job.c 
  */
 
-struct job *add_job() {
+struct job *add_job(int n_procs) {
     int i;
     for(i = 0; i < MAX_JOBS; i++) {
         if(!manager->jobs[i].used) {
             struct job *newjob = &manager->jobs[i];
+            newjob ->pids = calloc(n_procs, sizeof(pid_t));
             newjob -> pgid = 0;
+            newjob ->n_procs = n_procs;
             newjob -> remaining_processes = 0;
             newjob -> used = 1;
             newjob -> jobstate = UNKNOWN;
@@ -102,7 +105,7 @@ struct job *add_job() {
 
 int add_pid_to_job(struct job *job, pid_t pid) {
     int i;
-    for(i = 0; i < MAX_PIDS; i++) {
+    for(i = 0; i < job->n_procs; i++) {
         if(job->pids[i] == 0) {
             job->pids[i] = pid;
             job->remaining_processes++;

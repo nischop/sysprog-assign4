@@ -51,7 +51,7 @@ void handle_sigchld(void) {
                 if (!lookjob->used) {
                     continue;
                 }
-                for (j = 0; j < lookjob->remaining_processes; j++) {
+                for (j = 0; j < lookjob->n_procs; j++) {
                     if (lookjob->pids[j] == pid) {
                         found = 1;
                         remove_pid_from_job(lookjob, pid);
@@ -314,7 +314,7 @@ int fork_exec(DynArray_T oTokens, int is_background) {
      * All terminated processes must be handled by sigchld_handler() in * snush.c. 
      */
     char *args[dynarray_get_length(oTokens)];
-    struct job *job = add_job();
+    struct job *job = add_job(1);
     pid_t shell_pid = getpid();
     pid_t pid = fork();
 
@@ -354,7 +354,7 @@ int iter_pipe_fork_exec(int n_pipe, DynArray_T oTokens, int is_background) {
         int end_index;
     };
 
-    struct job *job = add_job();
+    struct job *job = add_job(n_pipe + 1);
     pid_t shell_pid = getpid();
     pid_t childpid;
 

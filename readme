@@ -1,6 +1,0 @@
-StudentID: 2025-81052
-Name: Jonas Lau Kristensen
-
-
-Known Bugs:
-It seems if i pipe 119 commands like sleep 1 | (118 times) then it starts splitting the commands up, like sle, eep and return invalid command name, this also happens in the sample_snu reference file, didn't have sufficient time to look into why.
